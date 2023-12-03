@@ -30,12 +30,15 @@ class Piece:
         if self.canmove(rank, file):
             self.rank = rank
             self.file = file
-            if self == Pawn and abs(rank - self.rank) == 2:
+            if type(self) is Pawn and abs(rank - self.rank) == 2:
                 return True
     
+    def take(self):
+        for piece in pieces.copy():
+            if piece.rank == self.rank and piece.file == self.file and piece != self:
+                pieces.remove(piece)
+    
     def canmove(self, rank, file):
-        if tomove != self.colour:
-            return False
         other = Board.free(rank, file)
         if other is None:
             return True
@@ -52,7 +55,6 @@ class Bishop(Piece):
         else:
             scanner = Scanner(self.rank, self.file)
             for i in range(1, abs(rank - self.rank)):
-                print(scanner.rank, scanner.file)
                 scanner.rank = self.rank + copysign(i, rank - self.rank)
                 scanner.file = self.file + copysign(i, file - self.file)
                 if Board.free(scanner.rank, scanner.file) is not None:
@@ -62,6 +64,8 @@ class Bishop(Piece):
 class Rook(Piece):
 
     def canmove(self, rank, file):
+        if self not in pieces:
+            return False
         if (self.rank == rank) + (self.file == file) != 1:
             return False
         else:
@@ -69,7 +73,7 @@ class Rook(Piece):
             squares = max(abs(rank - self.rank), abs(file - self.file))
             for i in range(1, squares):
                 scanner.rank = self.rank + i * (rank - self.rank) / squares
-                scanner.file = self.file + i * (rank - self.rank) / squares
+                scanner.file = self.file + i * (file - self.file) / squares
                 if Board.free(scanner.rank, scanner.file) is not None:
                     return False
         return Piece.canmove(self, rank, file)
@@ -101,13 +105,13 @@ class King(Piece):
 
     def check(self):
         for piece in pieces:
-            if piece.canmove(self.rank, self.file):
-                print("Check.", piece, piece.rank, piece.file)
+            if piece.canmove(self.rank, self.file) and piece.colour != self.colour:
+                print("Check.")
                 return True
         return False
         
     def canmove(self, rank, file):
-        if rank - self.rank in [-1, 0, 1] and file - self.file in [-1, 0, 1] and rank - self.rank + file - self.file != 0:
+        if rank - self.rank in [-1, 0, 1] and file - self.file in [-1, 0, 1] and (self.rank, self.file) != (rank, file):
             return Piece.canmove(self, rank, file)
         return False
 
@@ -123,11 +127,11 @@ class Pawn(Piece):
     def canmove(self, rank, file):
         if self.colour == "W":
             if rank - self.rank == 1 and file - self.file == 0:
-                return Board.free(rank, file) == None
+                return Board.free(rank, file) is None
             if rank == 3 and file - self.file == 0 and self.rank == 1:
-                    return Board.free(rank, file) == None and Board.free(rank - 1, file) == None
+                    return Board.free(rank, file) is None and Board.free(rank - 1, file) is None
             if rank - self.rank == 1 and abs(file - self.file) == 1:
-                if Board.free(rank, file) == None:
+                if Board.free(rank, file) is None:
                     if Board.enpassant(rank - 1, file):
                         return True
                     return False
@@ -136,11 +140,11 @@ class Pawn(Piece):
             return False
         if self.colour == "B":
             if rank - self.rank == -1 and file - self.file == 0:
-                return Board.free(rank, file) == None
+                return Board.free(rank, file) is None
             if rank == 4 and file - self.file == 0 and self.rank == 6:
-                    return Board.free(rank, file) == None and Board.free(rank + 1, file) == None
+                    return Board.free(rank, file) is None and Board.free(rank + 1, file) is None
             if rank - self.rank == -1 and abs(file - self.file) == 1:
-                if Board.free(rank, file) == None:
+                if Board.free(rank, file) is None:
                     if Board.enpassant(rank + 1, file):
                         return True
                     return False
@@ -148,6 +152,71 @@ class Pawn(Piece):
                     return Piece.canmove(self, rank, file)
             return False
 
+
+def find_moves(list, rank, file):
+    counter = 0
+    captured = Board.free(rank, file)
+    for i in list:
+        if i.canmove(rank, file):
+            origin = [i.rank, i.file].copy()
+            i.move(rank, file)
+            if captured is not None:
+                i.take()
+            if tomove == "W" and k1.check() or tomove == "B" and k2.check():
+                i.rank = origin[0]
+                i.file = origin[1]
+                if captured is not None:
+                    pieces.append(captured)
+            else:
+                counter += 1
+    if counter != 1:
+        print(counter)
+        return True
+    else:
+        return False
+
+
+def move_to_square(piece, rank, file):
+    if piece == "K":
+        if tomove == "W":
+            illegal = find_moves([k1], rank, file)
+        else:
+            illegal = find_moves([k2], rank, file)
+    elif piece == "Q":
+        candidates = [q for q in queens if q.canmove(rank, file)]
+        illegal = find_moves(candidates, rank, file)
+    elif piece == "B":
+        candidates = [b for b in bishops if b.canmove(rank, file)]
+        illegal = find_moves(candidates, rank, file)
+    elif piece == "N":
+        candidates = [n for n in knights if n.canmove(rank, file)]
+        illegal = find_moves(candidates, rank, file)
+    elif piece == "R":
+        candidates = [r for r in rooks if r.canmove(rank, file)]
+        illegal = find_moves(candidates, rank, file)
+    else:
+        illegal = True
+    return illegal
+
+
+def next(tomove):
+    if tomove == "W":
+        return "B"
+    else:
+        return "W"
+
+
+def repetition():
+    pos = ""
+    for piece in pieces:
+        pos += str(type(piece)) + str(piece.rank) + str(piece.file)
+    if hash(pos) not in positions:
+        positions[hash(pos)] = 1
+    else:
+        positions[hash(pos)] += 1
+        if positions[hash(pos)] == 3:
+            return True
+    return False
 
 b1 = Bishop(0, 2, "W")
 b2 = Bishop(0, 5, "W")
@@ -183,17 +252,9 @@ p15 = Pawn(6, 6, "B")
 p16 = Pawn(6, 7, "B")
 
 pieces = [b1, b2, b3, b4 ,r1, r2, r3, r4, q1, q2, k1, k2, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, n1, n2, n3, n4]
-whiteB = [b1, b2]
-whiteR = [r1, r2]
-whiteQ = [q1]
-whiteN = [n1, n2]
-whiteP = [p1, p2, p3, p4, p5, p6, p7, p8]
-blackB = [b3, b4]
-blackR = [r3, r4]
-blackQ = [q2]
-blackN = [n3, n4]
-blackP = [p9, p10, p11, p12, p13, p14, p15, p16]
-
+hasmoved = set()
+positions = {}
+move50 = -1
 tomove = "W"
 
 def display():
@@ -201,175 +262,275 @@ def display():
     for i in range(8):
         row = []
         for j in range(8):
-            if Board.free(i, j) is None:
+            piece = Board.free(i, j)
+            if piece is None:
                 row.append(" ")
             else:
-                if Board.free(i, j) in whiteP:
-                    row.append("P")
-                if Board.free(i, j) in whiteN:
-                    row.append("N")
-                if Board.free(i, j) in whiteB:
-                    row.append("B")
-                if Board.free(i, j) in whiteR:
-                    row.append("R")
-                if Board.free(i, j) in whiteQ:
-                    row.append("Q")
-                if Board.free(i, j) == k1:
-                    row.append("K")
-                if Board.free(i, j) in blackP:
-                    row.append("p")
-                if Board.free(i, j) in blackN:
-                    row.append("n")
-                if Board.free(i, j) in blackB:
-                    row.append("b")
-                if Board.free(i, j) in blackR:
-                    row.append("r")
-                if Board.free(i, j) in blackQ:
-                    row.append("q")
-                if Board.free(i, j) == k2:
-                    row.append("k")
+                if type(piece) is Pawn:
+                    row.append("P") if piece.colour == "W" else row.append("p")
+                elif type(piece) is Rook:
+                    row.append("R") if piece.colour == "W" else row.append("r")
+                elif type(piece) is Knight:
+                    row.append("N") if piece.colour == "W" else row.append("n")
+                elif type(piece) is Bishop:
+                    row.append("B") if piece.colour == "W" else row.append("b")
+                elif type(piece) is Queen:
+                    row.append("Q") if piece.colour == "W" else row.append("q")
+                elif type(piece) is King:
+                    row.append("K") if piece.colour == "W" else row.append("k")
+                else:
+                    row.append("?")
+                    print("There is an impostor among us.")
         sahovnica.append(row)
     return sahovnica
 
-print("""\nInstructions:
-When it is your turn to move, input the move you wish to make in algebraic notation.
-If the input is invalid or the move you wish to make is illegal, you will be asked to input the move again.
-\nAlgebraic notation:
-To move a piece to a desired square, write the designated letter of the piece and the coordinates you wish to land on. For example:
-Qh5 - Queen to h5
-Nf3 - Knight to f3
-Please note that the letter used to designate the piece must always be capitalised.
-Also note that the pawn does not have a designated letter:
-e4 - pawn to e4
-If you wish to take a piece, write the letter x between the piece and the square, thus:
-Qxe5 - Queen takes e5
-exd5 - the pawn on the e file takes d5.
-If the move you make is a check, you don't have to write the '+' sign at the end of your input.
-However, if you wish to promote a pawn, you will need to input the piece you wish to promote to:
-e8=Q - pawn to e8, promotes to a queen.
-The input: 'e8' will be considered invalid notation.
-\n""")
 
 while True:
+    pawns = [p for p in pieces if type(p) is Pawn and p.colour == tomove]
+    queens = [q for q in pieces if type(q) is Queen and q.colour == tomove]
+    bishops = [b for b in pieces if type(b) is Bishop and b.colour == tomove]
+    knights = [n for n in pieces if type(n) is Knight  and n.colour == tomove]
+    rooks = [r for r in pieces if type(r) is Rook and r.colour == tomove]
+    illegal = False
+    captured = None
+
     if tomove == "W":
-        position = {piece: (piece.rank, piece.file) for piece in pieces}.copy()
-        illegal = False
         for i in display()[::-1]:
             print(i)
         move = input("White to move: ")
-        if len(move) == 2:
-            if move[0] not in "abcdefgh" or move[1] not in "1234567":
-                illegal = True
-            else:
-                rank = int(move[1]) - 1
-                file = ord(move[0]) - 97
-                illegal = all(not pawn.canmove(rank, file) for pawn in whiteP)
-                for pawn in whiteP:
-                    pawn.move(rank, file)
-        if len(move) == 3:
-            if move[0] not in "BQNKR" or move[1] not in "abcdefgh" or move[2] not in "12345678":
-                print("Invalid notation.")
-                illegal = True
-            else:
-                piece = move[0]
-                rank = int(move[2]) - 1
-                file = ord(move[1]) - 97
-                if piece == "K":
-                    k1.move(rank, file)
-                if piece == "Q":
-                    illegal = all(not queen.canmove(rank, file) for queen in whiteQ)
-                    for queen in whiteQ:
-                        queen.move(rank, file)
-                if piece == "B":
-                    illegal = all(not bishop.canmove(rank, file) for bishop in whiteB)
-                    for bishop in whiteB:
-                        bishop.move(rank, file)
-                if piece == "N":
-                    illegal = all(not knight.canmove(rank, file) for knight in whiteN)
-                    for knight in whiteN:
-                        knight.move(rank, file)
-                if piece == "R":
-                    illegal = all(not rook.canmove(rank, file) for rook in whiteR)
-                    for rook in whiteR:
-                        rook.move(rank, file)
-        if len(move) == 4:
-            if move[0] in "abcdefgh" and move[1] == "8" and move[2] == "=" and move[3]:
-                file = ord(move[0]) - 97
-                illegal = all(not pawn.canmove(7, file) for pawn in whiteP)
-                for pawn in whiteP:
-                    if pawn.canmove(7, file):
-                        if move[3] == "R":
-                            pawn.move(7, file)
-                            whiteP.remove(pawn)
-                            whiteR.append(pawn)
-                        elif move[3] == "N":
-                            pawn.move(7, file)
-                            whiteP.remove(pawn)
-                            whiteN.append(pawn)
-                        elif move[3] == "B":
-                            pawn.move(7, file)
-                            whiteP.remove(pawn)
-                            whiteB.append(pawn)
-                        elif move[3] == "Q":
-                            pawn.move(7, file)
-                            whiteP.remove(pawn)
-                            whiteQ.append(pawn)
-                        else:
-                            print("Invalid notation.")
-                            illegal = True
-            else:
-                print("Invalid notation.")
-                illegal = True
-        tomove = "B"
-        if k1.check():
-            illegal = True
-        if illegal:
-            print("Illegal move.")
-            for piece, coords in position.items():
-                piece.rank = coords[0]
-                piece.file = coords[1]
-            tomove = "W"
-
-    if tomove == "B":
-        position = {piece: (piece.rank, piece.file) for piece in pieces}.copy()
-        illegal = False
+    else:
         for i in display():
-            print(i)
+            print(i[::-1])
         move = input("Black to move: ")
-        if len(move) == 2:
+
+    if move == "#":
+        if tomove == "W":
+            print("Game over, black wins!")
+        else:
+            print("Game over, white wins!")
+        break
+
+    elif len(move) == 2 or len(move) == 3 and move[2] in "+#":
+
+        if move[0] not in "abcdefgh" or move[1] not in "1234567":
+            illegal = True
+        else:
             rank = int(move[1]) - 1
             file = ord(move[0]) - 97
-            illegal = all(not pawn.canmove(rank, file) for pawn in blackP)
-            for pawn in blackP:
-                pawn.move(rank, file)
-        if len(move) == 3:
-            piece = move[0]
+            illegal = find_moves(pawns, rank, file)
+            if not illegal:
+                move50 = -1
+                positions = {}
+
+    elif len(move) == 3 or len(move) == 4 and move[3] in "+#":
+
+        if move[1] in "abcdefgh" or move[2] in "12345678":
             rank = int(move[2]) - 1
             file = ord(move[1]) - 97
-            if piece == "K":
-                k2.move(rank, file)
-            if piece == "Q":
-                illegal = all(not queen.canmove(rank, file) for queen in blackQ)
-                for queen in blackQ:
-                    queen.move(rank, file)
-            if piece == "B":
-                illegal = all(not bishop.canmove(rank, file) for bishop in blackB)
-                for bishop in blackB:
-                    bishop.move(rank, file)
-            if piece == "N":
-                illegal = all(not knight.canmove(rank, file) for knight in blackN)
-                for knight in blackN:
-                    knight.move(rank, file)
-            if piece == "R":
-                illegal = all(not rook.canmove(rank, file) for rook in blackR)
-                for rook in blackR:
-                    rook.move(rank, file)
-        tomove = "W"
-        if k2.check():
+            if Board.free(rank, file) is not None:
+                illegal = True
+            else:
+                illegal = move_to_square(move[0], rank, file)
+
+        elif move == "0-0":
+            if tomove == "W" and k1 not in hasmoved and r2 not in hasmoved and r2.canmove(0, 5):
+                illegal = find_moves([k1], 0, 5)
+                if not illegal:
+                    illegal = find_moves([k1], 0, 6)
+                    if not illegal:
+                        r2.file = 5
+            elif k2 not in hasmoved and r4 not in hasmoved:
+                if r4.canmove(7, 5):
+                    illegal = find_moves([k2], 7, 5)
+                    if not illegal:
+                        illegal = find_moves([k2], 7, 6)
+                        if not illegal:
+                            r4.file = 5
+                        else:
+                            k2.file = 4
+            else:
+                illegal = True
+        
+        else:
             illegal = True
-        if illegal:
-            print("Illegal move.")
-            for piece, coords in position.items():
-                piece.rank = coords[0]
-                piece.file = coords[1]
-            tomove = "B"
+
+    elif len(move) == 4 or len(move) == 5 and move[4] in "+#":
+
+        if move[0] in "abcdefgh" and move[1] == "8" and move[2] == "=":
+            file = ord(move[0]) - 97
+            illegal = find_moves(pawns, 8, file)
+            for pawn in pawns.copy():
+                if pawn.rank == 7:
+                    if move[3] == "R":
+                        rook = Rook(7, file, tomove)
+                        pieces.remove(pawn)
+                        pieces.append(rook)
+                    elif move[3] == "N":
+                        knight = Knight(7, file, tomove)
+                        pieces.remove(pawn)
+                        pieces.append(knight)
+                    elif move[3] == "B":
+                        bishop = Bishop(7, file, tomove)
+                        pieces.remove(pawn)
+                        pieces.append(knight)
+                    elif move[3] == "Q":
+                        queen = Queen(7, file, tomove)
+                        pawn.move(7, file)
+                        pieces.remove(pawn)
+                        pieces.append(queen)
+                    else:
+                        illegal = True
+
+        elif move[1] == "x" and move[2] in "abcdefgh" and move[3] in "12345678":
+            rank = int(move[3]) - 1
+            file = ord(move[2]) - 97
+            if Board.free(rank, file) is None:
+                illegal = True
+            else:
+                if move[0] in "abcdefgh":
+                    illegal = find_moves(pawns, rank, file)
+                else:
+                    illegal = move_to_square(move[0], rank, file)
+            if not illegal:
+                move50 = -1
+                positions = {}
+
+        elif move[0] in "BRQN" and move[2] in "abcdefgh" and move[3] in "12345678":
+            rank = int(move[3]) - 1
+            file = ord(move[2]) - 97
+            options = []
+            if move[0] == "Q":
+                candidates = queens
+            if move[0] == "B":
+                candidates = bishops
+            if move[0] == "N":
+                candidates = knights
+            if move[0] == "R":
+                candidates = rooks
+            if move[1] in "abcdefgh":
+                options = [piece for piece in candidates if piece.file == ord(move[1]) - 97]
+            elif move[1] in "12345678":
+                options = [piece for piece in candidates if piece.rank == int(move[1]) - 1]
+            illegal = find_moves(options, rank, file)
+
+        else:
+            illegal = True
+
+    elif len(move) == 5 or len(move) == 6 and move[5] in "+#":
+
+        if move[2] == "x" or move[3] in "abcdefgh" or move[4] in "12345678":
+            rank = int(move[4]) - 1
+            file = ord(move[3]) - 97
+            if Board.free(rank, file) is None:
+                illegal = True
+            else:
+                options = []
+                if move[0] == "Q":
+                    candidates = queens
+                if move[0] == "B":
+                    candidates = bishops
+                if move[0] == "N":
+                    candidates = knights
+                if move[0] == "R":
+                    candidates = rooks
+                if move[1] in "abcdefgh":
+                    options = [piece for piece in candidates if piece.file == ord(move[1]) - 97]
+                elif move[1] in "12345678":
+                    options = [piece for piece in candidates if piece.file == int(move[1]) - 1]
+                illegal = find_moves(options, rank, file)
+            if not illegal:
+                move50 = -1
+                positions = {}
+
+        elif move[0] in "QBNR" and all(x in "abcdefgh" for x in [move[1], move[3]]) and all(x in "12345678" for x in [move[2], move[4]]):
+            rank = int(move[4]) - 1
+            file = ord(move[3]) - 97
+            illegal = find_moves([q for q in queens if q.file == ord(move[1]) and q.rank == int(move[2])], rank, file)
+        
+        elif move == "0-0-0":
+            if tomove == "W" and k1 not in hasmoved and r1 not in hasmoved and r1.canmove(0, 3):
+                illegal = find_moves([k1], 0, 3)
+                if not illegal:
+                    illegal = find_moves([k1], 0, 2)
+                    if not illegal:
+                        r1.file = 3
+                    else:
+                        k1.file = 4
+            elif k2 not in hasmoved and r3 not in hasmoved and r3.canmove(7, 3):
+                illegal = find_moves([k2], 7, 3)
+                if not illegal:
+                    illegal = find_moves([k2], 7, 2)
+                    if not illegal:
+                        r3.file = 3
+                    else:
+                        k1.file = 4
+
+        else:
+            illegal = True
+
+    elif len(move) == 6 or len(move) == 7 and move[6] in "+#" and "x" in move:
+
+        split = move.split("x")
+        if split[1][0] not in "abcdefgh" or split[1][1] not in "12345678" or Board.free(rank, file) is None:
+            illegal = True
+        else:
+            rank = int(split[1][1]) - 1
+            file = ord(split[1][0]) - 97
+
+            if move in "abcdefgh" and move[5] == "=":
+                illegal = find_moves(pawns, rank, file)
+                for pawn in pawns.copy():
+                    if pawn.rank == 7:
+                        if move[3] == "R":
+                            rook = Rook(7, file, tomove)
+                            pieces.remove(pawn)
+                            pieces.append(rook)
+                        elif move[3] == "N":
+                            knight = Knight(7, file, tomove)
+                            pieces.remove(pawn)
+                            pieces.append(knight)
+                        elif move[3] == "B":
+                            bishop = Bishop(7, file, tomove)
+                            pieces.remove(pawn)
+                            pieces.append(knight)
+                        elif move[3] == "Q":
+                            queen = Queen(7, file, tomove)
+                            pawn.move(7, file)
+                            pieces.remove(pawn)
+                            pieces.append(queen)
+                        else:
+                            illegal = True
+
+            elif move[0] in "QBNR" and move[1] in "abcdefgh" and move[2] in "12345678":
+                illegal = find_moves([q for q in queens if q.file == ord(move[1]) and q.rank == int(move[2])], rank, file)
+            
+            else:
+                illegal = True
+        
+        if not illegal:
+            move50 = -1
+            positions = {}
+
+    else:
+        illegal = True
+
+    tomove = next(tomove)
+    if illegal:
+        print("Illegal move or invalid notation.")
+        tomove = next(tomove)
+    else:
+        piece = Board.free(rank, file)
+        hasmoved.add(piece)
+        if repetition():
+            print("Draw by repetition.")
+            break
+        move50 += 1
+        if move50 == 100:
+            print("Draw by 50 move rule.")
+            break
+
+# To-do:
+#  - ad en passant
+#  - improve UI
+#  - do a lot of testing
+#  - a lot of a lot of a lot of testing

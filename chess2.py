@@ -528,9 +528,3 @@ while True:
         if move50 == 100:
             print("Draw by 50 move rule.")
             break
-
-# To-do:
-#  - ad en passant
-#  - improve UI
-#  - do a lot of testing
-#  - a lot of a lot of a lot of testing

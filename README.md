@@ -1,2 +1,2 @@
 # Chess
-# I learned some Python so I decidd to make chess with it :D
+# I learned some Python so I decided to make chess with it :D

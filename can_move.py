@@ -9,14 +9,12 @@ class Piece:
     
     def can_move(self, rank, file):
         if self.colour != tomove:
-            print("Colour")
             return False
         else:
             target = Board.occ(rank, file)
             if not target:
                 return True
             else:
-                print("Occupied")
                 return target.colour != self.colour
     
     def move(self, rank, file):
@@ -68,8 +66,37 @@ class Queen(Piece):
                 if square:
                     return False
             return Piece.can_move(self, rank, file)
-            
-        
+
+class King(Piece):
+
+    def can_move(self, rank, file):
+        dy = abs(rank - self.rank)
+        dx = abs(file - self.file)
+        if dx in (0, 1) and dy in (0, 1) and dx + dy != 2:
+            return Piece.can_move(self, rank, file)
+        return False
+
+class Pawn(Piece):
+
+    def can_move(self, rank, file):
+        if self.file == file:
+            if rank == self.rank + 2 * tomove - 1:
+                return Piece.can_move(self, rank, file)
+            elif rank == self.rank + 4 * tomove - 2:
+                if Board.occ(rank, file) or Board.occ(rank - 2 * tomove + 1, file) and self.rank not in (1, 6):
+                    return False
+                else:
+                    en_passant = (self.rank + 2 * tomove + 1, file)
+                    return True
+        elif abs(self.file - file) == 1 and rank == self.rank + 2 * tomove - 1:
+            target = Board.occ(rank, file)
+            if target is not False:
+                return target.colour != self.colour
+            else:
+                return rank, file == en_passant
+        else:
+            return False
+
 class Board:
     
     def __init__(self):
@@ -86,5 +113,12 @@ class Board:
             if piece.rank == rank and piece.file == file:
                 pieces.remove(piece)
 
+p1 = Pawn(1, 4, True)
+p2 = Pawn(3, 5, False)
+en_passant = (-1, -1)
 tomove = True
-pieces = []
+pieces = [p1, p2]
+print(p1.can_move(3, 4))
+p1.move(3, 4)
+print(en_passant)
+print(p2.can_move(2, 4))

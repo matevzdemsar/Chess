@@ -190,10 +190,18 @@ def fen_encrypt(board, tomove, castle, en_passant, hmove, fmove):
             empty = 0
         if i < 7:
             string += "/"
-    string += f" {'w' * tomove}{'b' * (1 - tomove)} {castle}"
-    return string
+    string += f" {'w' * tomove}{'b' * (1 - tomove)}" + " " + castle + " "
+    return string + " " + en_passant + " " + str(hmove) + " " + str(fmove)
 
 
+def castle_str():
+    castle_w = f"{'K' * (not r2.has_moved) + 'Q' * (not r1.has_moved)}"
+    castle_b = f"{'k' * (not r4.has_moved) + 'q' * (not r3.has_moved)}"
+    castle = f"{castle_w * (not k1.has_moved) + castle_b * (not k2.has_moved)}"
+    if not len(castle):
+        castle = "-"
+    return castle
+        
 def display(board, tomove):
     if tomove:
         for i in board[::-1]:
@@ -364,13 +372,29 @@ tomove = True
 en_passant = False
 hmove = 0
 fmove = 0
+posits = {}
 
 while True:
     hmove += 1
     fmove += tomove
-    legal = True
     board = pieces_to_board()
+    legal = True
     display(board, tomove)
+
+    if hmove == 101:
+        print("Draw by 50-move rule.")
+        break
+    ep = f"{chr(en_passant[1]) + str(en_passant[0])}" if en_passant else "-"
+    fen = fen_encrypt(board, tomove, castle_str(), ep, hmove, fmove)
+    pos = fen.split(" ")[0]
+    if pos not in posits:
+        posits[pos] = 1
+    else:
+        posits[pos] += 1
+        if posits[pos] == 3:
+            print("Draw by threefold repetition.")
+            break
+
     move = get_move(tomove)
     if move is None:
         print(f"{'White' * (1 - tomove) + 'Black' * tomove} wins by resignation.")
@@ -401,8 +425,7 @@ while True:
             piece.move(rank, file)
             piece.has_moved = True
     else:
-        legal = castles(tomove, move == "queenside")
-    
+        legal = castles(tomove, move == "queenside")    
     if legal:
         tomove = not tomove
     else:

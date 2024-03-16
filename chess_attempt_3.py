@@ -87,7 +87,8 @@ class Pawn(Piece):
             if rank == self.rank + 2 * tomove - 1 and self.colour == tomove:
                 return Piece.can_move(self, rank, file)
             elif rank == self.rank + 4 * tomove - 2:
-                if Board.occ(rank, file) or Board.occ(rank - 2 * tomove + 1, file) and self.rank not in (1, 6):
+                if Board.occ(rank, file) or Board.occ(rank - 2 * tomove + 1, file) and \
+                self.rank not in (1, 6) and self.colour == tomove:
                     return False
                 else:
                     return True
@@ -118,14 +119,21 @@ class Board:
                 pieces.remove(piece)
 
 
+class Any():
+    
+    def __eq__(self, other):
+        return True
+
+
 def board_to_pieces(board):
     pieces = []
-    for i in board:
-        for j in i:
-            if j != " ":
-                piece = [King, Pawn, Knight, Bishop, Rook, Queen][j in "Pp" + \
-                2 * j in "Nn" + 3 * j in "Bb" + 4 * j in "Rr" + 5 * j in "Qq"]
-                pieces.append(piece(i, j, j.isupper()))
+    for i in range(len(board)):
+        for j in range(len(board[i])):
+            square = board[i][j]
+            if board[i][j] != " ":
+                piece = [King, Pawn, Knight, Bishop, Rook, Queen][(square in "Pp") + \
+                2 * (square in "Nn") + 3 * (square in "Bb") + 4 * (square in "Rr") + 5 * (square in "Qq")]
+                pieces.append(piece(i, j, square.isupper()))
     return pieces
 
 
@@ -240,7 +248,7 @@ def get_move(tomove):
     
     if len(move) == 2:
         if move[0] in "abcdefgh" and move[1] in "234567":
-            return Pawn, int(move[1]) - 1, ord(move[0]) - 97, False, Pawn
+            return (Pawn, Any(), Any()), int(move[1]) - 1, ord(move[0]) - 97, Pawn
         return False
     
     if len(move) == 3:
@@ -249,46 +257,53 @@ def get_move(tomove):
         if move[0] in "BQNKR" and move[1] in "abcdefgh" and move[2] in "12345678":
             piece = [Bishop, Queen, Knight, Rook, King][(move[0] == "Q") + \
             2 * (move[0] == "N") + 3 * (move[0] == "R") + 4 * (move[0] == "K")]
-            return piece, int(move[2]) - 1, ord(move[1]) - 97, False, piece
+            return (piece, Any(), Any()), int(move[2]) - 1, ord(move[1]) - 97, piece
         return False
     
     if len(move) == 4:
         if move[0] in "BQNKR" and move[1] == "x" and move[2] in "abcdefgh" and move[3] in "12345678":
             piece = [Bishop, Queen, Knight, Rook, King][(move[0] == "Q") + \
             2 * (move[0] == "N") + 3 * (move[0] == "R") + 4 * (move[0] == "K")]
-            return piece, int(move[3]) - 1, ord(move[2]) - 97, True, piece
+            return (piece, Any(), Any()), int(move[3]) - 1, ord(move[2]) - 97, piece
         if move[0] in "abcdefgh" and move[1] == "x" and move[2] in "abcdefgh" and move[3] in "234567":
-            return Pawn, int(move[3]) - 1, ord(move[2]) - 97, True, Pawn
+            return (Pawn, Any(), ord(move[0]) - 97), int(move[3]) - 1, ord(move[2]) - 97, Pawn
         if move[0] in "abcdefgh" and move[1] in "18" and move[2] == "=" and move[3] in "BRQN":
             piece = [Bishop, Rook, Queen, Knight][(move[3] == "R") + 2 * (move[3] == "Q") + 3 * (move[3] == "N")]
-            return Pawn, int(move[1]) - 1, ord(move[0]) - 97, False, piece
-        if move[0] in "BRQN" and move[1] in "abcdefgh1234568" and move[2] in "abcdefgh" and move[3] in "12345678":
+            return (Pawn, Any(), Any()), int(move[1]) - 1, ord(move[0]) - 97, piece
+        if move[0] in "BRQN" and move[1] in "abcdefgh" and move[2] in "abcdefgh" and move[3] in "12345678":
             piece = [Bishop, Rook, Queen, Knight][(move[0] == "R") + 2 * (move[0] == "Q") + 3 * (move[0] == "N")]
-            return (piece, move[1]), int(move[3]) - 1, ord(move[2]) - 97, False, piece
+            return (piece, Any(), ord(move[1]) - 97), int(move[3]) - 1, ord(move[2]) - 97,  piece
+        if move[0] in "BRQN" and move[1] in "12345678" and move[2] in "abcdefgh" and move[3] in "12345678":
+            piece = [Bishop, Rook, Queen, Knight][(move[0] == "R") + 2 * (move[0] == "Q") + 3 * (move[0] == "N")]
+            return (piece, int(move[1]) - 1, Any()), int(move[3]) - 1, ord(move[2]) - 97, piece
         return False
     
     if len(move) == 5:
         if move == "0-0-0":
             return "queenside"
-        if move[0] in "BRQN" and move[1] in "abcdefgh12345678" and move[2] == "x" \
+        if move[0] in "BRQN" and move[1] in "abcdefgh" and move[2] == "x" \
             and move[3] in "abcdefgh" and move[4] in "12345678":
             piece = [Bishop, Rook, Queen, Knight][(move[0] == "R") + 2 * (move[0] == "Q") + 3 * (move[0] == "N")]
-            return (piece, move[1]), int(move[4]) - 1, ord(move[3]) - 97, True, piece
+            return (piece, Any(), ord(move[1]) - 97), int(move[4]) - 1, ord(move[3]) - 97, piece
+        if move[0] in "BRQN" and move[1] in "12345678" and move[2] == "x" \
+            and move[3] in "abcdefgh" and move[4] in "12345678":
+            piece = [Bishop, Rook, Queen, Knight][(move[0] == "R") + 2 * (move[0] == "Q") + 3 * (move[0] == "N")]
+            return (piece, int(move[1]) - 1, Any()), int(move[4]) - 1, ord(move[3]) - 97, piece
         if move[0] in "BRQN" and move[1] in "abcdefgh" and move[2] in "12345678" \
             and move[3] in "abcdefgh" and move[4] in "12345678":
             piece = [Bishop, Rook, Queen, Knight][(move[0] == "R" )+ 2 * (move[0] == "Q") + 3 * (move[0] == "N")]
-            return (piece, move[1], move[2]), int(move[4]) - 1, ord(move[3]) - 97, False, piece
+            return (piece, int(move[2]) - 1, ord(move[1]) - 97), int(move[4]) - 1, ord(move[3]) - 97, piece
         return False
     
     if len(move) == 6:
         if move[0] in "abcdefgh" and move[1] == "x" and move[2] in "abcdefgh" \
             and move[3] in "18" and move[4] == "=" and move[5] in "BRQN":
             piece = [Bishop, Rook, Queen, Knight][(move[0] == "R") + 2 * (move[0] == "Q") + 3 * (move[0] == "N")]
-            return Pawn, int(move[3]) - 1, ord(move[2]) - 97, True, piece
+            return (Pawn, Any(), Any()), int(move[3]) - 1, ord(move[2]) - 97, piece
         if move[0] in "BRQN" and move[1] in "abcdefgh" and move[2] in "12345678" \
             and move[3] == "x" and move[4] in "abcdefgh" and move[5] in "12345678":
             piece = [Bishop, Rook, Queen, Knight][(move[0] == "R" )+ 2 * (move[0] == "Q") + 3 * (move[0] == "N")]
-            return (piece, move[1], move[2]), int(move[5]) - 1, ord(move[4]) - 97, True, piece
+            return (piece, int(move[2]) - 1, ord(move[1]) - 97), int(move[5]) - 1, ord(move[4]) - 97, piece
         return False
     
     return False
@@ -296,11 +311,8 @@ def get_move(tomove):
 
 def legal_move(piece, rank, file):
     lm = []
-    if type(piece) is tuple:
-        piece_type = [x for x in pieces if type(x) == piece[0] \
-        and x.rank == piece[1] and x.file == piece[2]]
-    else:
-        piece_type = [x for x in pieces if type(x) == piece]
+    piece_type = [x for x in pieces if (type(x) == piece[0]) \
+    and (x.rank == piece[1]) and (x.file == piece[2])]
     for i in piece_type:
         if i.can_move(rank, file, en_passant):
             coords = i.rank, i.file
@@ -309,7 +321,8 @@ def legal_move(piece, rank, file):
                 lm.append(i)
             i.rank, i.file = coords
     return lm[0] if len(lm) == 1 else False
-    
+
+
 b1 = Bishop(0, 2, True)
 b2 = Bishop(0, 5, True)
 b3 = Bishop(7, 2, False)
@@ -349,7 +362,12 @@ kings = [k2, k1]
 rooks = [[r4, r3], [r2, r1]]
 tomove = True
 en_passant = False
+hmove = 0
+fmove = 0
+
 while True:
+    hmove += 1
+    fmove += tomove
     legal = True
     board = pieces_to_board()
     display(board, tomove)
@@ -361,13 +379,23 @@ while True:
         print("Invalid notation.")
         legal = False
     elif type(move) is tuple:
-        piece_type, rank, file, takes, becomes = move
+        piece_type, rank, file, becomes = move
         piece = legal_move(piece_type, rank, file)
         if not piece:
             legal = False
         else:
-            if piece_type is Pawn and abs(piece.rank - rank) == 2:
-                en_passant = (rank - 2 * tomove + 1, file, tomove)
+            target = Board.occ(rank, file)
+            if target:
+                Board.take(rank, file)
+                hmove = 0
+            elif en_passant == (rank, file, not tomove) and type(piece) is Pawn:
+                Board.take(rank - 2 * tomove + 1, file)
+            if type(piece) is Pawn:
+                hmove = 0
+                if becomes is not Pawn:
+                    piece = becomes(piece.rank, piece.file, piece.colour)
+                if abs(piece.rank - rank) == 2:
+                    en_passant = (rank - 2 * tomove + 1, file, tomove)
             else:
                 en_passant = False
             piece.move(rank, file)

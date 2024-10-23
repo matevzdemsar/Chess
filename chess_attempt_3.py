@@ -59,7 +59,8 @@ class Rook(Piece):
 class Queen(Piece):
     
     def can_move(self, rank, file, en_passant=False):
-        if abs(rank - self.rank) != abs(file - self.file) and (self.rank == rank) + (self.file == file) != 1:
+        if abs(rank - self.rank) != abs(file - self.file) and \
+        (self.rank == rank) + (self.file == file) != 1:
             return False
         else:
             dist = max(abs(self.file - file), abs(self.rank - rank))
@@ -211,10 +212,10 @@ def display(board, tomove):
             print(i[::-1])
 
 
-def is_legal(tomove):
+def is_legal(tomove, exception=None):
     king = kings[tomove]
     for piece in pieces:
-        if piece.can_move(king.rank, king.file):
+        if piece.can_move(king.rank, king.file) and piece != exception:
             return False
     return True
 
@@ -232,11 +233,11 @@ def castles(colour, side):
     else:
         king.file -= 2 * side - 1
         if not is_legal(colour):
-            king.file -= 2 * side - 1
+            king.file += 2 * side - 1
             return False
         king.file -= 2 * side - 1
         if not is_legal(colour):
-            king.file -= 4 * side - 2
+            king.file += 4 * side - 2
             return False
         rook.move(king.rank, king.file + 2 * side - 1)
         king.has_moved = True
@@ -306,7 +307,7 @@ def get_move(tomove):
     if len(move) == 6:
         if move[0] in "abcdefgh" and move[1] == "x" and move[2] in "abcdefgh" \
             and move[3] in "18" and move[4] == "=" and move[5] in "BRQN":
-            piece = [Bishop, Rook, Queen, Knight][(move[0] == "R") + 2 * (move[0] == "Q") + 3 * (move[0] == "N")]
+            piece = [Bishop, Rook, Queen, Knight][(move[5] == "R") + 2 * (move[5] == "Q") + 3 * (move[5] == "N")]
             return (Pawn, Any(), Any()), int(move[3]) - 1, ord(move[2]) - 97, piece
         if move[0] in "BRQN" and move[1] in "abcdefgh" and move[2] in "12345678" \
             and move[3] == "x" and move[4] in "abcdefgh" and move[5] in "12345678":
@@ -320,12 +321,13 @@ def get_move(tomove):
 def legal_move(piece, rank, file):
     lm = []
     piece_type = [x for x in pieces if (type(x) == piece[0]) \
-    and (x.rank == piece[1]) and (x.file == piece[2])]
+    and (x.rank == piece[1]) and (x.file == piece[2]) and x.colour == tomove]
     for i in piece_type:
         if i.can_move(rank, file, en_passant):
             coords = i.rank, i.file
-            i.move(rank, file)
-            if is_legal(i.colour):
+            i.move(rank, file)                                      # i.rank, i.file = rank, file
+            target = Board.occ(rank, file)
+            if is_legal(i.colour, target):
                 lm.append(i)
             i.rank, i.file = coords
     return lm[0] if len(lm) == 1 else False
@@ -375,26 +377,9 @@ fmove = 0
 posits = {}
 
 while True:
-    hmove += 1
-    fmove += tomove
-    board = pieces_to_board()
     legal = True
+    board = pieces_to_board()
     display(board, tomove)
-
-    if hmove == 101:
-        print("Draw by 50-move rule.")
-        break
-    ep = f"{chr(en_passant[1]) + str(en_passant[0])}" if en_passant else "-"
-    fen = fen_encrypt(board, tomove, castle_str(), ep, hmove, fmove)
-    pos = fen.split(" ")[0]
-    if pos not in posits:
-        posits[pos] = 1
-    else:
-        posits[pos] += 1
-        if posits[pos] == 3:
-            print("Draw by threefold repetition.")
-            break
-
     move = get_move(tomove)
     if move is None:
         print(f"{'White' * (1 - tomove) + 'Black' * tomove} wins by resignation.")
@@ -417,7 +402,7 @@ while True:
             if type(piece) is Pawn:
                 hmove = 0
                 if becomes is not Pawn:
-                    piece = becomes(piece.rank, piece.file, piece.colour)
+                    pieces[pieces.index(piece)] = becomes(rank, file, piece.colour)
                 if abs(piece.rank - rank) == 2:
                     en_passant = (rank - 2 * tomove + 1, file, tomove)
             else:
@@ -425,8 +410,25 @@ while True:
             piece.move(rank, file)
             piece.has_moved = True
     else:
-        legal = castles(tomove, move == "queenside")    
+        legal = castles(tomove, move == "queenside")
+            
     if legal:
+        hmove += 1
+        fmove += tomove
         tomove = not tomove
+
+        if hmove == 101:
+            print("Draw by 50-move rule.")
+            break
+        ep = f"{chr(en_passant[1]) + str(en_passant[0])}" if en_passant else "-"
+        fen = fen_encrypt(board, tomove, castle_str(), ep, hmove, fmove)
+        pos = fen.split(" ")[0]
+        if pos not in posits:
+            posits[pos] = 1
+        else:
+            posits[pos] += 1
+            if posits[pos] == 3:
+                print("Draw by threefold repetition.")
+                break
     else:
         print("Illegal move.")

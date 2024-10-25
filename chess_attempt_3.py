@@ -7,7 +7,7 @@ class Piece:
         self.file = file
         self.colour = colour
         self.has_moved = has_moved
-
+    
     def can_move(self, rank, file):
         target = Board.occ(rank, file)
         if not target:
@@ -22,6 +22,9 @@ class Piece:
 
 class Knight(Piece):
     
+    def __str__(self):
+        return f"Knight on {chr(self.file + 97) + str(self.rank + 1)}"
+    
     def can_move(self, rank, file, en_passant=False):
         if abs((rank - self.rank) * (file - self.file)) != 2:
             return False
@@ -30,6 +33,9 @@ class Knight(Piece):
 
 
 class Bishop(Piece):
+    
+    def __str__(self):
+        return f"Bishop on {chr(self.file + 97) + str(self.rank + 1)}"
     
     def can_move(self, rank, file, en_passant=False):
         if abs(rank - self.rank) != abs(file - self.file):
@@ -44,6 +50,9 @@ class Bishop(Piece):
 
 class Rook(Piece):
     
+    def __str__(self):
+        return f"Rook on {chr(self.file + 97) + str(self.rank + 1)}"
+    
     def can_move(self, rank, file, en_passant=False):
         if (self.rank == rank) + (self.file == file) != 1:
             return False
@@ -57,6 +66,9 @@ class Rook(Piece):
 
 
 class Queen(Piece):
+    
+    def __str__(self):
+        return f"Queen on {chr(self.file + 97) + str(self.rank + 1)}"
     
     def can_move(self, rank, file, en_passant=False):
         if abs(rank - self.rank) != abs(file - self.file) and \
@@ -73,6 +85,9 @@ class Queen(Piece):
 
 class King(Piece):
 
+    def __str__(self):
+        return f"King on {chr(self.file + 97) + str(self.rank + 1)}"
+    
     def can_move(self, rank, file, en_passant=False):
         dy = abs(rank - self.rank)
         dx = abs(file - self.file)
@@ -83,6 +98,9 @@ class King(Piece):
 
 class Pawn(Piece):
 
+    def __str__(self):
+        return f"Pawn on {chr(self.file + 97) + str(self.rank + 1)}"
+    
     def can_move(self, rank, file, en_passant=False):
         if self.file == file:
             if rank == self.rank + 2 * tomove - 1 and self.colour == tomove:
@@ -318,19 +336,27 @@ def get_move(tomove):
     return False
 
 
-def legal_move(piece, rank, file):
-    lm = []
-    piece_type = [x for x in pieces if (type(x) == piece[0]) \
-    and (x.rank == piece[1]) and (x.file == piece[2]) and x.colour == tomove]
-    for i in piece_type:
+def legal_move(piece_options, rank, file):
+    lm = []    
+    for i in piece_options:
         if i.can_move(rank, file, en_passant):
             coords = i.rank, i.file
-            i.move(rank, file)                                      # i.rank, i.file = rank, file
+            i.rank, i.file = rank, file
             target = Board.occ(rank, file)
             if is_legal(i.colour, target):
                 lm.append(i)
             i.rank, i.file = coords
     return lm[0] if len(lm) == 1 else False
+
+
+def all_moves(tomove):
+    moves = []
+    for piece in pieces:
+        for rank in range(8):
+            for file in range(8):
+                if piece.colour == tomove and legal_move([piece], rank, file):
+                    moves.append([piece.__str__(), chr(file + 97), rank + 1])
+    return moves
 
 
 b1 = Bishop(0, 2, True)
@@ -377,6 +403,7 @@ fmove = 0
 posits = {}
 
 while True:
+    print(all_moves(tomove))
     legal = True
     board = pieces_to_board()
     display(board, tomove)
@@ -389,7 +416,9 @@ while True:
         legal = False
     elif type(move) is tuple:
         piece_type, rank, file, becomes = move
-        piece = legal_move(piece_type, rank, file)
+        piece_options = [x for x in pieces if (type(x) == piece_type[0]) \
+        and (x.rank == piece_type[1]) and (x.file == piece_type[2]) and x.colour == tomove]
+        piece = legal_move(piece_options, rank, file)
         if not piece:
             legal = False
         else:
